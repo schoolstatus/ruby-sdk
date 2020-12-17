@@ -16,6 +16,7 @@ module Bandwidth
   class Server
     SERVER = [
       DEFAULT = 'default'.freeze,
+      IRISDEFAULT = 'IrisDefault'.freeze,
       MESSAGINGDEFAULT = 'MessagingDefault'.freeze,
       TWOFACTORAUTHDEFAULT = 'TwoFactorAuthDefault'.freeze,
       VOICEDEFAULT = 'VoiceDefault'.freeze,
@@ -34,6 +35,8 @@ module Bandwidth
     attr_reader :backoff_factor
     attr_reader :environment
     attr_reader :base_url
+    attr_reader :iris_basic_auth_user_name
+    attr_reader :iris_basic_auth_password
     attr_reader :messaging_basic_auth_user_name
     attr_reader :messaging_basic_auth_password
     attr_reader :two_factor_auth_basic_auth_user_name
@@ -50,6 +53,8 @@ module Bandwidth
     def initialize(timeout: 60, max_retries: 0, retry_interval: 1,
                    backoff_factor: 1, environment: Environment::PRODUCTION,
                    base_url: 'https://www.example.com',
+                   iris_basic_auth_user_name: 'TODO: Replace',
+                   iris_basic_auth_password: 'TODO: Replace',
                    messaging_basic_auth_user_name: 'TODO: Replace',
                    messaging_basic_auth_password: 'TODO: Replace',
                    two_factor_auth_basic_auth_user_name: 'TODO: Replace',
@@ -76,6 +81,12 @@ module Bandwidth
 
       # baseUrl value
       @base_url = base_url
+
+      # The username to use with basic authentication
+      @iris_basic_auth_user_name = iris_basic_auth_user_name
+
+      # The password to use with basic authentication
+      @iris_basic_auth_password = iris_basic_auth_password
 
       # The username to use with basic authentication
       @messaging_basic_auth_user_name = messaging_basic_auth_user_name
@@ -107,6 +118,8 @@ module Bandwidth
 
     def clone_with(timeout: nil, max_retries: nil, retry_interval: nil,
                    backoff_factor: nil, environment: nil, base_url: nil,
+                   iris_basic_auth_user_name: nil,
+                   iris_basic_auth_password: nil,
                    messaging_basic_auth_user_name: nil,
                    messaging_basic_auth_password: nil,
                    two_factor_auth_basic_auth_user_name: nil,
@@ -121,6 +134,8 @@ module Bandwidth
       backoff_factor ||= self.backoff_factor
       environment ||= self.environment
       base_url ||= self.base_url
+      iris_basic_auth_user_name ||= self.iris_basic_auth_user_name
+      iris_basic_auth_password ||= self.iris_basic_auth_password
       messaging_basic_auth_user_name ||= self.messaging_basic_auth_user_name
       messaging_basic_auth_password ||= self.messaging_basic_auth_password
       two_factor_auth_basic_auth_user_name ||= self.two_factor_auth_basic_auth_user_name
@@ -134,6 +149,8 @@ module Bandwidth
         timeout: timeout, max_retries: max_retries,
         retry_interval: retry_interval, backoff_factor: backoff_factor,
         environment: environment, base_url: base_url,
+        iris_basic_auth_user_name: iris_basic_auth_user_name,
+        iris_basic_auth_password: iris_basic_auth_password,
         messaging_basic_auth_user_name: messaging_basic_auth_user_name,
         messaging_basic_auth_password: messaging_basic_auth_password,
         two_factor_auth_basic_auth_user_name: two_factor_auth_basic_auth_user_name,
@@ -155,6 +172,7 @@ module Bandwidth
     ENVIRONMENTS = {
       Environment::PRODUCTION => {
         Server::DEFAULT => 'api.bandwidth.com',
+        Server::IRISDEFAULT => 'https://dashboard.bandwidth.com/api/',
         Server::MESSAGINGDEFAULT => 'https://messaging.bandwidth.com/api/v2',
         Server::TWOFACTORAUTHDEFAULT => 'https://mfa.bandwidth.com/api/v1/',
         Server::VOICEDEFAULT => 'https://voice.bandwidth.com',
@@ -162,6 +180,7 @@ module Bandwidth
       },
       Environment::CUSTOM => {
         Server::DEFAULT => '{base_url}',
+        Server::IRISDEFAULT => '{base_url}',
         Server::MESSAGINGDEFAULT => '{base_url}',
         Server::TWOFACTORAUTHDEFAULT => '{base_url}',
         Server::VOICEDEFAULT => '{base_url}',
