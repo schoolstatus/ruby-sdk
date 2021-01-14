@@ -7,7 +7,7 @@
 require_relative 'voice/client.rb'
 
 # Models
-require_relative 'voice/models/api_call_response.rb'
+require_relative 'voice/models/api_call_response_name_change_test.rb'
 require_relative 'voice/models/api_call_state_response.rb'
 require_relative 'voice/models/api_create_call_request.rb'
 require_relative 'voice/models/api_modify_call_request.rb'
@@ -43,4 +43,3 @@ require_relative 'voice/exceptions/api_error_response_exception.rb'
 # Controllers
 require_relative 'voice/controllers/base_controller.rb'
 require_relative 'voice/controllers/api_controller.rb'
-require_relative 'bxml/bxml.rb'

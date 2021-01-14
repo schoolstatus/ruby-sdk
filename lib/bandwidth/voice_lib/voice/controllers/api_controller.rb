@@ -14,7 +14,7 @@ module Voice
     # Creates an outbound call
     # @param [String] account_id Required parameter: Example:
     # @param [ApiCreateCallRequest] body Optional parameter: Example:
-    # @return [ApiCallResponse] response from the API call
+    # @return [ApiCallResponseNameChangeTest] response from the API call
     def create_call(account_id,
                     body: nil)
       # Prepare query url.
@@ -87,7 +87,8 @@ module Voice
       # Return appropriate response type.
       decoded = APIHelper.json_deserialize(_response.raw_body)
       ApiResponse.new(
-        _response, data: ApiCallResponse.from_hash(decoded)
+        _response,
+        data: ApiCallResponseNameChangeTest.from_hash(decoded)
       )
     end
 
