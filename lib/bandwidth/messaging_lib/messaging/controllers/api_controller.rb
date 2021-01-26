@@ -294,6 +294,106 @@ module Messaging
       ApiResponse.new(_response)
     end
 
+    # getMessages
+    # @param [String] account_id Required parameter: Example:
+    # @param [String] user_id Required parameter: Example:
+    # @param [String] message_id Optional parameter: Example:
+    # @param [String] source_tn Optional parameter: Example:
+    # @param [String] destination_tn Optional parameter: Example:
+    # @param [String] message_status Optional parameter: Example:
+    # @param [Integer] error_code Optional parameter: Example:
+    # @param [String] from_date_time Optional parameter: Example:
+    # @param [String] to_date_time Optional parameter: Example:
+    # @param [String] page_token Optional parameter: Example:
+    # @param [Integer] limit Optional parameter: Example:
+    # @return [BandwidthMessagesList] response from the API call
+    def get_messages(account_id,
+                     user_id,
+                     message_id: nil,
+                     source_tn: nil,
+                     destination_tn: nil,
+                     message_status: nil,
+                     error_code: nil,
+                     from_date_time: nil,
+                     to_date_time: nil,
+                     page_token: nil,
+                     limit: nil)
+      # Prepare query url.
+      _query_builder = config.get_base_uri(Server::MESSAGINGDEFAULT)
+      _query_builder << '/users/{userId}/messages'
+      _query_builder = APIHelper.append_url_with_template_parameters(
+        _query_builder,
+        'accountId' => { 'value' => account_id, 'encode' => false },
+        'userId' => { 'value' => user_id, 'encode' => false }
+      )
+      _query_builder = APIHelper.append_url_with_query_parameters(
+        _query_builder,
+        'messageId' => message_id,
+        'sourceTn' => source_tn,
+        'destinationTn' => destination_tn,
+        'messageStatus' => message_status,
+        'errorCode' => error_code,
+        'fromDateTime' => from_date_time,
+        'toDateTime' => to_date_time,
+        'pageToken' => page_token,
+        'limit' => limit
+      )
+      _query_url = APIHelper.clean_url _query_builder
+
+      # Prepare headers.
+      _headers = {
+        'accept' => 'application/json'
+      }
+
+      # Prepare and execute HttpRequest.
+      _request = config.http_client.get(
+        _query_url,
+        headers: _headers
+      )
+      MessagingBasicAuth.apply(config, _request)
+      _response = execute_request(_request)
+
+      # Validate response against endpoint and global error codes.
+      if _response.status_code == 400
+        raise MessagingException.new(
+          '400 Request is malformed or invalid',
+          _response
+        )
+      elsif _response.status_code == 401
+        raise MessagingException.new(
+          '401 The specified user does not have access to the account',
+          _response
+        )
+      elsif _response.status_code == 403
+        raise MessagingException.new(
+          '403 The user does not have access to this API',
+          _response
+        )
+      elsif _response.status_code == 404
+        raise MessagingException.new(
+          '404 Path not found',
+          _response
+        )
+      elsif _response.status_code == 415
+        raise MessagingException.new(
+          '415 The content-type of the request is incorrect',
+          _response
+        )
+      elsif _response.status_code == 429
+        raise MessagingException.new(
+          '429 The rate limit has been reached',
+          _response
+        )
+      end
+      validate_response(_response)
+
+      # Return appropriate response type.
+      decoded = APIHelper.json_deserialize(_response.raw_body)
+      ApiResponse.new(
+        _response, data: BandwidthMessagesList.from_hash(decoded)
+      )
+    end
+
     # createMessage
     # @param [String] user_id Required parameter: Example:
     # @param [MessageRequest] body Optional parameter: Example:
