@@ -7,7 +7,7 @@ module Bandwidth
   # ApiModifyConferenceRequest Model.
   class ApiModifyConferenceRequest < BaseModel
     # TODO: Write general description for this method
-    # @return [StatusEnum]
+    # @return [Status]
     attr_accessor :status
 
     # TODO: Write general description for this method
@@ -82,7 +82,7 @@ module Bandwidth
       return nil unless hash
 
       # Extract variables from the hash.
-      status = hash['status']
+      status = Status.from_hash(hash['status']) if hash['status']
       redirect_url = hash['redirectUrl']
       redirect_fallback_url = hash['redirectFallbackUrl']
       redirect_method = hash['redirectMethod']
