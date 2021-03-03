@@ -32,7 +32,7 @@ module Bandwidth
 
     # User's account ID
     # @return [String]
-    attr_accessor :user_id
+    attr_accessor :account_id
 
     # User's account ID
     # @return [String]
@@ -55,7 +55,7 @@ module Bandwidth
       @_hash['content_length'] = 'contentLength'
       @_hash['content_type'] = 'contentType'
       @_hash['tags'] = 'tags'
-      @_hash['user_id'] = 'userId'
+      @_hash['account_id'] = 'accountId'
       @_hash['media_name'] = 'mediaName'
       @_hash['media_id'] = 'mediaId'
       @_hash['cache_control'] = 'cacheControl'
@@ -68,7 +68,7 @@ module Bandwidth
                    content_length = nil,
                    content_type = nil,
                    tags = nil,
-                   user_id = nil,
+                   account_id = nil,
                    media_name = nil,
                    media_id = nil,
                    cache_control = nil)
@@ -78,7 +78,7 @@ module Bandwidth
       @content_length = content_length
       @content_type = content_type
       @tags = tags
-      @user_id = user_id
+      @account_id = account_id
       @media_name = media_name
       @media_id = media_id
       @cache_control = cache_control
@@ -102,7 +102,7 @@ module Bandwidth
           tags << (Tag.from_hash(structure) if structure)
         end
       end
-      user_id = hash['userId']
+      account_id = hash['accountId']
       media_name = hash['mediaName']
       media_id = hash['mediaId']
       cache_control = hash['cacheControl']
@@ -114,7 +114,7 @@ module Bandwidth
                 content_length,
                 content_type,
                 tags,
-                user_id,
+                account_id,
                 media_name,
                 media_id,
                 cache_control)
