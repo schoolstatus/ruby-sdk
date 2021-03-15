@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.homepage = 'https://apimatic.io'
   s.license = 'MIT'
   s.add_dependency('logging', '2.0')
-  s.add_dependency('faraday', '~> 0.9')
+  s.add_dependency('faraday', '~> 1.0')
   s.add_dependency('faraday_middleware', '>= 0.8.8')
   s.add_dependency('certifi', '~> 2018.1', '>= 2018.01.18')
   s.add_dependency('faraday-http-cache', '~> 2.2')
