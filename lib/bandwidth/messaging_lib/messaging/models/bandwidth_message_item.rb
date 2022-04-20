@@ -6,6 +6,9 @@
 module Bandwidth
   # BandwidthMessageItem Model.
   class BandwidthMessageItem < BaseModel
+    SKIP = Object.new
+    private_constant :SKIP
+
     # The message id
     # @return [String]
     attr_accessor :message_id
@@ -50,6 +53,26 @@ module Bandwidth
     # @return [String]
     attr_accessor :carrier_name
 
+    # The size of the message including message content and headers
+    # @return [Integer]
+    attr_accessor :message_size
+
+    # The length of the message content
+    # @return [Integer]
+    attr_accessor :message_length
+
+    # The number of attachments the message has
+    # @return [Integer]
+    attr_accessor :attachment_count
+
+    # The number of recipients the message has
+    # @return [Integer]
+    attr_accessor :recipient_count
+
+    # The campaign class of the message, if it has one
+    # @return [String]
+    attr_accessor :campaign_class
+
     # A mapping from model property names to API property names.
     def self.names
       @_hash = {} if @_hash.nil?
@@ -64,7 +87,39 @@ module Bandwidth
       @_hash['error_code'] = 'errorCode'
       @_hash['receive_time'] = 'receiveTime'
       @_hash['carrier_name'] = 'carrierName'
+      @_hash['message_size'] = 'messageSize'
+      @_hash['message_length'] = 'messageLength'
+      @_hash['attachment_count'] = 'attachmentCount'
+      @_hash['recipient_count'] = 'recipientCount'
+      @_hash['campaign_class'] = 'campaignClass'
       @_hash
+    end
+
+    # An array for optional fields
+    def optionals
+      %w[
+        message_id
+        account_id
+        source_tn
+        destination_tn
+        message_status
+        message_direction
+        message_type
+        segment_count
+        error_code
+        receive_time
+        carrier_name
+        message_size
+        message_length
+        attachment_count
+        recipient_count
+        campaign_class
+      ]
+    end
+
+    # An array for nullable fields
+    def nullables
+      []
     end
 
     def initialize(message_id = nil,
@@ -77,18 +132,28 @@ module Bandwidth
                    segment_count = nil,
                    error_code = nil,
                    receive_time = nil,
-                   carrier_name = nil)
-      @message_id = message_id
-      @account_id = account_id
-      @source_tn = source_tn
-      @destination_tn = destination_tn
-      @message_status = message_status
-      @message_direction = message_direction
-      @message_type = message_type
-      @segment_count = segment_count
-      @error_code = error_code
-      @receive_time = receive_time
-      @carrier_name = carrier_name
+                   carrier_name = nil,
+                   message_size = nil,
+                   message_length = nil,
+                   attachment_count = nil,
+                   recipient_count = nil,
+                   campaign_class = nil)
+      @message_id = message_id unless message_id == SKIP
+      @account_id = account_id unless account_id == SKIP
+      @source_tn = source_tn unless source_tn == SKIP
+      @destination_tn = destination_tn unless destination_tn == SKIP
+      @message_status = message_status unless message_status == SKIP
+      @message_direction = message_direction unless message_direction == SKIP
+      @message_type = message_type unless message_type == SKIP
+      @segment_count = segment_count unless segment_count == SKIP
+      @error_code = error_code unless error_code == SKIP
+      @receive_time = receive_time unless receive_time == SKIP
+      @carrier_name = carrier_name unless carrier_name == SKIP
+      @message_size = message_size unless message_size == SKIP
+      @message_length = message_length unless message_length == SKIP
+      @attachment_count = attachment_count unless attachment_count == SKIP
+      @recipient_count = recipient_count unless recipient_count == SKIP
+      @campaign_class = campaign_class unless campaign_class == SKIP
     end
 
     # Creates an instance of the object from a hash.
@@ -96,17 +161,25 @@ module Bandwidth
       return nil unless hash
 
       # Extract variables from the hash.
-      message_id = hash['messageId']
-      account_id = hash['accountId']
-      source_tn = hash['sourceTn']
-      destination_tn = hash['destinationTn']
-      message_status = hash['messageStatus']
-      message_direction = hash['messageDirection']
-      message_type = hash['messageType']
-      segment_count = hash['segmentCount']
-      error_code = hash['errorCode']
-      receive_time = hash['receiveTime']
-      carrier_name = hash['carrierName']
+      message_id = hash.key?('messageId') ? hash['messageId'] : SKIP
+      account_id = hash.key?('accountId') ? hash['accountId'] : SKIP
+      source_tn = hash.key?('sourceTn') ? hash['sourceTn'] : SKIP
+      destination_tn = hash.key?('destinationTn') ? hash['destinationTn'] : SKIP
+      message_status = hash.key?('messageStatus') ? hash['messageStatus'] : SKIP
+      message_direction =
+        hash.key?('messageDirection') ? hash['messageDirection'] : SKIP
+      message_type = hash.key?('messageType') ? hash['messageType'] : SKIP
+      segment_count = hash.key?('segmentCount') ? hash['segmentCount'] : SKIP
+      error_code = hash.key?('errorCode') ? hash['errorCode'] : SKIP
+      receive_time = hash.key?('receiveTime') ? hash['receiveTime'] : SKIP
+      carrier_name = hash.key?('carrierName') ? hash['carrierName'] : SKIP
+      message_size = hash.key?('messageSize') ? hash['messageSize'] : SKIP
+      message_length = hash.key?('messageLength') ? hash['messageLength'] : SKIP
+      attachment_count =
+        hash.key?('attachmentCount') ? hash['attachmentCount'] : SKIP
+      recipient_count =
+        hash.key?('recipientCount') ? hash['recipientCount'] : SKIP
+      campaign_class = hash.key?('campaignClass') ? hash['campaignClass'] : SKIP
 
       # Create object from extracted values.
       BandwidthMessageItem.new(message_id,
@@ -119,7 +192,12 @@ module Bandwidth
                                segment_count,
                                error_code,
                                receive_time,
-                               carrier_name)
+                               carrier_name,
+                               message_size,
+                               message_length,
+                               attachment_count,
+                               recipient_count,
+                               campaign_class)
     end
   end
 end

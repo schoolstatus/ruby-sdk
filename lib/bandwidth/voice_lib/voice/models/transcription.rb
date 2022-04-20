@@ -6,40 +6,58 @@
 module Bandwidth
   # Transcription Model.
   class Transcription < BaseModel
+    SKIP = Object.new
+    private_constant :SKIP
+
     # TODO: Write general description for this method
     # @return [String]
     attr_accessor :id
 
     # TODO: Write general description for this method
-    # @return [Status3Enum]
+    # @return [String]
+    attr_accessor :url
+
+    # TODO: Write general description for this method
+    # @return [String]
     attr_accessor :status
 
     # TODO: Write general description for this method
     # @return [String]
     attr_accessor :completed_time
 
-    # TODO: Write general description for this method
-    # @return [String]
-    attr_accessor :url
-
     # A mapping from model property names to API property names.
     def self.names
       @_hash = {} if @_hash.nil?
       @_hash['id'] = 'id'
+      @_hash['url'] = 'url'
       @_hash['status'] = 'status'
       @_hash['completed_time'] = 'completedTime'
-      @_hash['url'] = 'url'
       @_hash
     end
 
+    # An array for optional fields
+    def optionals
+      %w[
+        id
+        url
+        status
+        completed_time
+      ]
+    end
+
+    # An array for nullable fields
+    def nullables
+      []
+    end
+
     def initialize(id = nil,
+                   url = nil,
                    status = nil,
-                   completed_time = nil,
-                   url = nil)
-      @id = id
-      @status = status
-      @completed_time = completed_time
-      @url = url
+                   completed_time = nil)
+      @id = id unless id == SKIP
+      @url = url unless url == SKIP
+      @status = status unless status == SKIP
+      @completed_time = completed_time unless completed_time == SKIP
     end
 
     # Creates an instance of the object from a hash.
@@ -47,16 +65,16 @@ module Bandwidth
       return nil unless hash
 
       # Extract variables from the hash.
-      id = hash['id']
-      status = hash['status']
-      completed_time = hash['completedTime']
-      url = hash['url']
+      id = hash.key?('id') ? hash['id'] : SKIP
+      url = hash.key?('url') ? hash['url'] : SKIP
+      status = hash.key?('status') ? hash['status'] : SKIP
+      completed_time = hash.key?('completedTime') ? hash['completedTime'] : SKIP
 
       # Create object from extracted values.
       Transcription.new(id,
+                        url,
                         status,
-                        completed_time,
-                        url)
+                        completed_time)
     end
   end
 end

@@ -13,13 +13,14 @@ module Bandwidth
     def self.serialize_array(key, array, formatting: 'indexed')
       tuples = []
 
-      if formatting == 'unindexed'
+      case formatting
+      when 'unindexed'
         tuples += array.map { |element| ["#{key}[]", element] }
-      elsif formatting == 'indexed'
+      when 'indexed'
         tuples += array.map.with_index do |element, index|
           ["#{key}[#{index}]", element]
         end
-      elsif formatting == 'plain'
+      when 'plain'
         tuples += array.map { |element| [key, element] }
       else
         raise ArgumentError, 'Invalid format provided.'
@@ -60,7 +61,7 @@ module Bandwidth
         end
 
         # Find the template parameter and replace it with its value.
-        query_builder = query_builder.gsub('{' + key.to_s + '}', replace_value)
+        query_builder = query_builder.gsub("{#{key}}", replace_value)
       end
       query_builder
     end
@@ -68,9 +69,7 @@ module Bandwidth
     # Appends the given set of parameters to the given query string.
     # @param [String] The query string builder to add the query parameters to.
     # @param [Hash] The parameters to append.
-    # @param [String] The format of array parameter serialization.
-    def self.append_url_with_query_parameters(query_builder, parameters,
-                                              array_serialization: 'indexed')
+    def self.append_url_with_query_parameters(query_builder, parameters)
       # Perform parameter validation.
       unless query_builder.instance_of? String
         raise ArgumentError, 'Given value for parameter \"query_builder\"
@@ -80,20 +79,23 @@ module Bandwidth
       # Return if there are no parameters to replace.
       return query_builder if parameters.nil?
 
+      array_serialization = 'indexed'
+
       parameters.each do |key, value|
         seperator = query_builder.include?('?') ? '&' : '?'
         unless value.nil?
           if value.instance_of? Array
             value.compact!
-            query_builder += if array_serialization == 'csv'
+            query_builder += case array_serialization
+                             when 'csv'
                                "#{seperator}#{key}=#{value.map do |element|
                                  CGI.escape(element.to_s)
                                end.join(',')}"
-                             elsif array_serialization == 'psv'
+                             when 'psv'
                                "#{seperator}#{key}=#{value.map do |element|
                                  CGI.escape(element.to_s)
                                end.join('|')}"
-                             elsif array_serialization == 'tsv'
+                             when 'tsv'
                                "#{seperator}#{key}=#{value.map do |element|
                                  CGI.escape(element.to_s)
                                end.join("\t")}"
@@ -119,7 +121,7 @@ module Bandwidth
       raise ArgumentError, 'Invalid Url.' unless url.instance_of? String
 
       # Ensure that the urls are absolute.
-      matches = url.match(%r{^(https?:\/\/[^\/]+)})
+      matches = url.match(%r{^(https?://[^/]+)})
       raise ArgumentError, 'Invalid Url format.' if matches.nil?
 
       # Get the http protocol match.
@@ -130,7 +132,7 @@ module Bandwidth
 
       # Remove redundant forward slashes.
       query = url[protocol.length...(!index.nil? ? index : url.length)]
-      query.gsub!(%r{\/\/+}, '/')
+      query.gsub!(%r{//+}, '/')
 
       # Get the parameters.
       parameters = !index.nil? ? url[url.index('?')...url.length] : ''
@@ -142,7 +144,8 @@ module Bandwidth
     # Parses JSON string.
     # @param [String] A JSON string.
     def self.json_deserialize(json)
-      return JSON.parse(json)
+      return {} if json.nil? || json.empty?
+      JSON.parse(json)
     rescue StandardError
       raise TypeError, 'Server responded with invalid JSON.'
     end
@@ -156,8 +159,8 @@ module Bandwidth
     # Form encodes a hash of parameters.
     # @param [Hash] The hash of parameters to encode.
     # @return [Hash] A hash with the same parameters form encoded.
-    def self.form_encode_parameters(form_parameters,
-                                    array_serialization: 'indexed')
+    def self.form_encode_parameters(form_parameters)
+      array_serialization = 'indexed'
       encoded = {}
       form_parameters.each do |key, value|
         encoded.merge!(APIHelper.form_encode(value, key, formatting:
@@ -171,6 +174,7 @@ module Bandwidth
       a.each do |key, value_a|
         b.each do |k, value_b|
           next unless key == k
+
           x[k] = []
           if value_a.instance_of? Array
             value_a.each do |v|
@@ -215,13 +219,12 @@ module Bandwidth
       elsif obj.instance_of? Array
         if formatting == 'indexed'
           obj.each_with_index do |value, index|
-            retval.merge!(APIHelper.form_encode(value, instance_name + '[' +
-              index.to_s + ']'))
+            retval.merge!(APIHelper.form_encode(value, "#{instance_name}[#{index}]"))
           end
         elsif serializable_types.map { |x| obj[0].is_a? x }.any?
           obj.each do |value|
             abc = if formatting == 'unindexed'
-                    APIHelper.form_encode(value, instance_name + '[]',
+                    APIHelper.form_encode(value, "#{instance_name}[]",
                                           formatting: formatting)
                   else
                     APIHelper.form_encode(value, instance_name,
@@ -231,14 +234,14 @@ module Bandwidth
           end
         else
           obj.each_with_index do |value, index|
-            retval.merge!(APIHelper.form_encode(value, instance_name + '[' +
-              index.to_s + ']', formatting: formatting))
+            retval.merge!(APIHelper.form_encode(value, "#{instance_name}[#{index}]",
+                                                formatting: formatting))
           end
         end
       elsif obj.instance_of? Hash
         obj.each do |key, value|
-          retval.merge!(APIHelper.form_encode(value, instance_name + '[' +
-            key.to_s + ']', formatting: formatting))
+          retval.merge!(APIHelper.form_encode(value, "#{instance_name}[#{key}]",
+                                              formatting: formatting))
         end
       elsif obj.instance_of? File
         retval[instance_name] = UploadIO.new(
@@ -272,18 +275,6 @@ module Bandwidth
         val = nil
       end
       val
-    end
-
-    # Safely converts a string into an rfc3339 DateTime object
-    # @param [String] The datetime string
-    # @return [DateTime] A DateTime object of rfc3339 format
-    def self.rfc3339(date_time)
-      # missing timezone information
-      if date_time.end_with?('Z') || date_time.index('+')
-        DateTime.rfc3339(date_time)
-      else
-        DateTime.rfc3339(date_time + 'Z')
-      end
     end
   end
 end

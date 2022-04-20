@@ -13,15 +13,37 @@ module Bandwidth
         value = instance_variable_get(name)
         name = name[1..-1]
         key = self.class.names.key?(name) ? self.class.names[name] : name
-        if value.instance_of? Array
-          hash[key] = value.map { |v| v.is_a?(BaseModel) ? v.to_hash : v }
-        elsif value.instance_of? Hash
-          hash[key] = {}
-          value.each do |k, v|
-            hash[key][k] = v.is_a?(BaseModel) ? v.to_hash : v
+
+        optional_fields = optionals if respond_to? 'optionals'
+        nullable_fields = nullables if respond_to? 'nullables'
+        if value.nil?
+          next unless nullable_fields.include?(name)
+
+          if !optional_fields.include?(name) && !nullable_fields.include?(name)
+            raise ArgumentError,
+                  "`#{name}` cannot be nil in `#{self.class}`. Please specify a valid value."
           end
-        else
-          hash[key] = value.is_a?(BaseModel) ? value.to_hash : value
+        end
+
+        hash[key] = nil
+        unless value.nil?
+          if respond_to?("to_#{name}")
+            if (value.instance_of? Array) || (value.instance_of? Hash)
+              params = [hash, key]
+              hash[key] = send("to_#{name}", *params)
+            else
+              hash[key] = send("to_#{name}")
+            end
+          elsif value.instance_of? Array
+            hash[key] = value.map { |v| v.is_a?(BaseModel) ? v.to_hash : v }
+          elsif value.instance_of? Hash
+            hash[key] = {}
+            value.each do |k, v|
+              hash[key][k] = v.is_a?(BaseModel) ? v.to_hash : v
+            end
+          else
+            hash[key] = value.is_a?(BaseModel) ? value.to_hash : value
+          end
         end
       end
       hash

@@ -3,25 +3,24 @@
 # A simple integration test against Bandwidth's APIs
 
 require 'test/unit'
+require 'securerandom'
 require_relative '../../lib/bandwidth.rb'
 
 include Bandwidth
 include Bandwidth::Voice
 include Bandwidth::Messaging
-include Bandwidth::TwoFactorAuth
+include Bandwidth::MultiFactorAuth
+include Bandwidth::WebRtc
 
 begin
-    USERNAME = ENV.fetch("USERNAME")
-    PASSWORD = ENV.fetch("PASSWORD")
-    ACCOUNT_ID = ENV.fetch("ACCOUNT_ID")
-    VOICE_APPLICATION_ID = ENV.fetch("VOICE_APPLICATION_ID")
-    MESSAGING_APPLICATION_ID = ENV.fetch("MESSAGING_APPLICATION_ID")
-    CALLBACK_URL = ENV.fetch("CALLBACK_URL")
-    PHONE_NUMBER_OUTBOUND = ENV.fetch("PHONE_NUMBER_OUTBOUND")
-    PHONE_NUMBER_INBOUND = ENV.fetch("PHONE_NUMBER_INBOUND")
-    MFA_MESSAGING_APPLICATION_ID = ENV.fetch("MFA_MESSAGING_APPLICATION_ID")
-    MFA_VOICE_APPLICATION_ID = ENV.fetch("MFA_VOICE_APPLICATION_ID")
-    PHONE_NUMBER_MFA = ENV.fetch("PHONE_NUMBER_MFA")
+    BW_USERNAME = ENV.fetch("BW_USERNAME")
+    BW_PASSWORD = ENV.fetch("BW_PASSWORD")
+    BW_ACCOUNT_ID = ENV.fetch("BW_ACCOUNT_ID")
+    BW_VOICE_APPLICATION_ID = ENV.fetch("BW_VOICE_APPLICATION_ID")
+    BW_MESSAGING_APPLICATION_ID = ENV.fetch("BW_MESSAGING_APPLICATION_ID")
+    BASE_CALLBACK_URL = ENV.fetch("BASE_CALLBACK_URL")
+    BW_NUMBER = ENV.fetch("BW_NUMBER")
+    USER_NUMBER = ENV.fetch("USER_NUMBER")
 rescue
     puts "Environmental variables not found"
     exit(-1)
@@ -30,33 +29,46 @@ end
 class IntegrationTest < Test::Unit::TestCase
     def setup
         @bandwidth_client = Bandwidth::Client.new(
-            voice_basic_auth_user_name: USERNAME,
-            voice_basic_auth_password: PASSWORD,
-            messaging_basic_auth_user_name: USERNAME,
-            messaging_basic_auth_password: PASSWORD,
-            two_factor_auth_basic_auth_user_name: USERNAME,
-            two_factor_auth_basic_auth_password: PASSWORD
+            voice_basic_auth_user_name: BW_USERNAME,
+            voice_basic_auth_password: BW_PASSWORD,
+            messaging_basic_auth_user_name: BW_USERNAME,
+            messaging_basic_auth_password: BW_PASSWORD,
+            multi_factor_auth_basic_auth_user_name: BW_USERNAME,
+            multi_factor_auth_basic_auth_password: BW_PASSWORD,
+            phone_number_lookup_basic_auth_user_name: BW_USERNAME,
+            phone_number_lookup_basic_auth_password: BW_PASSWORD
+        )
+
+        @bandwidth_client_invalid_auth = Bandwidth::Client.new(
+            voice_basic_auth_user_name: "bad_username",
+            voice_basic_auth_password: "bad_password",
+            messaging_basic_auth_user_name: "bad_username",
+            messaging_basic_auth_password: "bad_password",
+            multi_factor_auth_basic_auth_user_name: "bad_username",
+            multi_factor_auth_basic_auth_password: "bad_password",
+            phone_number_lookup_basic_auth_user_name: "bad_username",
+            phone_number_lookup_basic_auth_password: "bad_password"
         )
     end
 
     def test_create_message
         body = MessageRequest.new
-        body.application_id = MESSAGING_APPLICATION_ID
-        body.to = [PHONE_NUMBER_INBOUND]
-        body.from = PHONE_NUMBER_OUTBOUND
+        body.application_id = BW_MESSAGING_APPLICATION_ID
+        body.to = [USER_NUMBER]
+        body.from = BW_NUMBER
         body.text = "Ruby Integration"
-        response = @bandwidth_client.messaging_client.client.create_message(ACCOUNT_ID, body)
+        response = @bandwidth_client.messaging_client.client.create_message(BW_ACCOUNT_ID, body)
         assert(response.data.id.length > 0, "id value not set") #validate that _some_ id was returned
     end
 
     def test_create_message_invalid_phone_number
         body = MessageRequest.new
-        body.application_id = MESSAGING_APPLICATION_ID
+        body.application_id = BW_MESSAGING_APPLICATION_ID
         body.to = ["+1invalid"]
-        body.from = PHONE_NUMBER_OUTBOUND
+        body.from = BW_NUMBER
         body.text = "Ruby Integration"
         begin
-            @bandwidth_client.messaging_client.client.create_message(ACCOUNT_ID, :body => body)
+            @bandwidth_client.messaging_client.client.create_message(BW_ACCOUNT_ID, body)
             #workaround to make sure that if the above error is not raised, the build will fail
             assert(false, "Expected exception not raised")
         rescue MessagingException => e
@@ -66,44 +78,97 @@ class IntegrationTest < Test::Unit::TestCase
 
     def test_upload_download_media
         #define constants for upload media and download media
-        media_file_name = 'ruby_integration' #future update to add special symbols
-        media_file = '12345' #todo: check a binary string
+        media_id = "text-media-id-" + SecureRandom.uuid
+        media = "Hello world"
 
         #media upload
-        @bandwidth_client.messaging_client.client.upload_media(ACCOUNT_ID, media_file_name, media_file.length.to_s, media_file, :content_type => "application/octet-stream", :cache_control => "no-cache")
+        @bandwidth_client.messaging_client.client.upload_media(BW_ACCOUNT_ID, media_id, media, :content_type => "application/octet-stream", :cache_control => "no-cache")
 
         #media download
-        downloaded_media_file = @bandwidth_client.messaging_client.client.get_media(ACCOUNT_ID, media_file_name).data
+        downloaded_media = @bandwidth_client.messaging_client.client.get_media(BW_ACCOUNT_ID, media_id).data
 
-        assert_equal(downloaded_media_file, media_file, "Downloaded media file not equal to upload")
+        assert_equal(downloaded_media, media, "Downloaded media file not equal to upload")
     end
 
+    def test_get_message
+        # Send a successful request to the GET messages API
+        response = @bandwidth_client.messaging_client.client.get_messages(BW_ACCOUNT_ID, :message_id => "abc123")
+        assert_equal(response.status_code, 200, "API did not return a 200 OK")
+    end 
+
+    def test_get_message_invalid_auth
+        # Send an unsuccessful request to the GET messages API
+        assert_raise MessagingException do
+            response = @bandwidth_client_invalid_auth.messaging_client.client.get_messages(BW_ACCOUNT_ID)
+        end
+    end 
+
     def test_create_call_and_get_call_state
-        body = ApiCreateCallRequest.new
-        body.from = PHONE_NUMBER_OUTBOUND
-        body.to = PHONE_NUMBER_INBOUND
-        body.application_id = VOICE_APPLICATION_ID
-        body.answer_url = CALLBACK_URL
-        response = @bandwidth_client.voice_client.client.create_call(ACCOUNT_ID, :body => body)
+        body = CreateCallRequest.new
+        body.from = BW_NUMBER
+        body.to = USER_NUMBER
+        body.application_id = BW_VOICE_APPLICATION_ID
+        body.answer_url = BASE_CALLBACK_URL
+        response = @bandwidth_client.voice_client.client.create_call(BW_ACCOUNT_ID, body)
         assert(response.data.call_id.length > 0, "call_id value not set")
 
         #Get phone call information
-        response = @bandwidth_client.voice_client.client.get_call_state(ACCOUNT_ID, response.data.call_id)
+        sleep 1
+        response = @bandwidth_client.voice_client.client.get_call(BW_ACCOUNT_ID, response.data.call_id)
         assert(response.data.state.length > 0, "state value not set")
     end
 
+    def test_create_call_with_amd_and_get_call_state
+        machine_detection = MachineDetectionConfiguration.new
+        machine_detection.mode = 'async'
+        machine_detection.detection_timeout = 5.0
+        machine_detection.silence_timeout = 5.0
+        machine_detection.speech_threshold = 5.0
+        machine_detection.speech_end_threshold = 5.0
+        machine_detection.delay_result = true
+        machine_detection.callback_url = BASE_CALLBACK_URL + '/machineDetection'
+        machine_detection.callback_method = 'POST'
+        machine_detection.machine_speech_end_threshold = 3.2
+
+        body = CreateCallRequest.new
+        body.from = BW_NUMBER
+        body.to = USER_NUMBER
+        body.application_id = BW_VOICE_APPLICATION_ID
+        body.answer_url = BASE_CALLBACK_URL
+        body.machine_detection = machine_detection
+        response = @bandwidth_client.voice_client.client.create_call(BW_ACCOUNT_ID, body)
+        assert(response.data.call_id.length > 0, "call_id value not set")
+
+        #Get phone call information
+        response = @bandwidth_client.voice_client.client.get_call(BW_ACCOUNT_ID, response.data.call_id)
+        assert(response.data.state.length > 0, "state value not set")
+    end
+
+    def test_create_call_with_priority
+        body = CreateCallRequest.new
+        body.from = BW_NUMBER
+        body.to = USER_NUMBER
+        body.application_id = BW_VOICE_APPLICATION_ID
+        body.answer_url = BASE_CALLBACK_URL
+        body.priority = 1
+
+        response = @bandwidth_client.voice_client.client.create_call(BW_ACCOUNT_ID, body)
+        assert(response.data.call_id.length > 0, "call_id value not set")
+        assert(response.data.priority == 1, "priority not set")
+    end
+
     def test_create_call_invalid_phone_number
-        body = ApiCreateCallRequest.new
-        body.from = PHONE_NUMBER_OUTBOUND
+        body = CreateCallRequest.new
+        body.from = BW_NUMBER
         body.to = "+1invalid"
-        body.application_id = VOICE_APPLICATION_ID
-        body.answer_url = CALLBACK_URL
+        body.application_id = BW_VOICE_APPLICATION_ID
+        body.answer_url = BASE_CALLBACK_URL
 
         begin
-            @bandwidth_client.voice_client.client.create_call(ACCOUNT_ID, :body => body)
+            @bandwidth_client.voice_client.client.create_call(BW_ACCOUNT_ID, :body => body)
             #workaround to make sure that if the above error is not raised, the build will fail
             assert(false, "Expected exception not raised")
-        rescue ApiErrorResponseException => e
+        rescue ApiErrorException => e
             assert(e.description.length > 0, "description value not set")
         end
     end
@@ -464,38 +529,38 @@ class IntegrationTest < Test::Unit::TestCase
 
     def test_mfa_messaging
         body = TwoFactorCodeRequestSchema.new
-        body.from = PHONE_NUMBER_MFA
-        body.to = PHONE_NUMBER_INBOUND
-        body.application_id = MFA_MESSAGING_APPLICATION_ID
+        body.from = BW_NUMBER
+        body.to = USER_NUMBER
+        body.application_id = BW_MESSAGING_APPLICATION_ID
         body.scope = "scope"
         body.digits = 6
         body.message = "Your temporary {NAME} {SCOPE} code is {CODE}"
 
-        response = @bandwidth_client.two_factor_auth_client.mfa.create_messaging_two_factor(ACCOUNT_ID, body)
+        response = @bandwidth_client.multi_factor_auth_client.mfa.create_messaging_two_factor(BW_ACCOUNT_ID, body)
         assert(response.data.message_id.length > 0, "message id value not set")
     end
 
     def test_mfa_voice
         body = TwoFactorCodeRequestSchema.new
-        body.from = PHONE_NUMBER_MFA
-        body.to = PHONE_NUMBER_INBOUND
-        body.application_id = MFA_VOICE_APPLICATION_ID
+        body.from = BW_NUMBER
+        body.to = USER_NUMBER
+        body.application_id = BW_VOICE_APPLICATION_ID
         body.scope = "scope"
         body.digits = 6
         body.message = "Your temporary {NAME} {SCOPE} code is {CODE}"
 
-        response = @bandwidth_client.two_factor_auth_client.mfa.create_voice_two_factor(ACCOUNT_ID, body)
+        response = @bandwidth_client.multi_factor_auth_client.mfa.create_voice_two_factor(BW_ACCOUNT_ID, body)
         assert(response.data.call_id.length > 0, "call id value not set")
     end
 
     def test_mfa_verify
         body = TwoFactorVerifyRequestSchema.new
-        body.to = PHONE_NUMBER_INBOUND
-        body.application_id = MFA_VOICE_APPLICATION_ID
+        body.to = "+1000" + rand(1111111..9999999).to_s
+        body.application_id = BW_VOICE_APPLICATION_ID
         body.scope = "scope"
         body.code = "123456"
         body.expiration_time_in_minutes = 3
-        response = @bandwidth_client.two_factor_auth_client.mfa.create_verify_two_factor(ACCOUNT_ID, body)
+        response = @bandwidth_client.multi_factor_auth_client.mfa.create_verify_two_factor(BW_ACCOUNT_ID, body)
         #Ruby has no check to see if variables are of type boolean
         #An explicit true/false check is required
         assert(response.data.valid == true || response.data.valid == false, "'valid' variable is not a boolean")
@@ -529,13 +594,14 @@ class IntegrationTest < Test::Unit::TestCase
 
     def test_ring
         ring = Bandwidth::Voice::Ring.new({
-            :duration => 5
+            :duration => 5,
+            :answer_call => false
         })
 
         response = Bandwidth::Voice::Response.new()
         response.push(ring)
 
-        expected = '<?xml version="1.0" encoding="UTF-8"?><Response><Ring duration="5"/></Response>'
+        expected = '<?xml version="1.0" encoding="UTF-8"?><Response><Ring duration="5" answerCall="false"/></Response>'
         actual = response.to_bxml()
         assert_equal(expected, actual)
     end
@@ -556,7 +622,7 @@ class IntegrationTest < Test::Unit::TestCase
         actual = response.to_bxml()
         assert_equal(expected, actual)
     end
-    
+
     def test_stop_gather
         stop_gather = Bandwidth::Voice::StopGather.new()
 
@@ -565,6 +631,29 @@ class IntegrationTest < Test::Unit::TestCase
 
         expected = '<?xml version="1.0" encoding="UTF-8"?><Response><StopGather/></Response>'
         actual = response.to_bxml()
+        assert_equal(expected, actual)
+    end
+
+    def test_tn_lookup
+        body = OrderRequest.new
+        body.tns = [BW_NUMBER]
+        create_response = @bandwidth_client.phone_number_lookup_client.client.create_lookup_request(BW_ACCOUNT_ID, body)
+        assert(create_response.data.request_id.length > 0, "request_id value not set")
+
+        request_id = create_response.data.request_id
+        get_response = @bandwidth_client.phone_number_lookup_client.client.get_lookup_request_status(BW_ACCOUNT_ID, request_id)
+        assert(get_response.data.status.length > 0, "status value not set")
+    end
+
+    def test_webrtc_generate_bxml
+        expected = '<?xml version="1.0" encoding="UTF-8"?><Response><Transfer><SipUri uui="93d6f3c0be5845960b744fa28015d8ede84bd1a4;encoding=base64,asdf;encoding=jwt">sip:sipx.webrtc.bandwidth.com:5060</SipUri></Transfer></Response>'
+        actual = Bandwidth::WebRtc.generate_bxml('asdf', 'c-93d6f3c0-be584596-0b74-4fa2-8015-d8ede84bd1a4')
+        assert_equal(expected, actual)
+    end
+
+    def test_webrtc_generate_transfer_bxml_verb
+        expected = '<Transfer><SipUri uui="93d6f3c0be5845960b744fa28015d8ede84bd1a4;encoding=base64,asdf;encoding=jwt">sip:sipx.webrtc.bandwidth.com:5060</SipUri></Transfer>'
+        actual = Bandwidth::WebRtc.generate_transfer_bxml_verb('asdf', 'c-93d6f3c0-be584596-0b74-4fa2-8015-d8ede84bd1a4')
         assert_equal(expected, actual)
     end
 end
